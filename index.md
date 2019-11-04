@@ -7,5 +7,4 @@
     -Furkan Sevimli
     -Efe Demir
     
-## [ODD Assignment](https://github.com/pjournal/mef03g-mujde-r/blob/master/ODDAssignment.html)
-
+## [ODD Assignment](https://pjournal.github.io/mef03g-mujde-r//ODDAssignment.html)
