@@ -6,5 +6,7 @@
     -Civan Şık
     -Furkan Sevimli
     -Efe Demir
-    
+
+## [Project Proposal](https://pjournal.github.io/mef03g-mujde-r//ProjectProposal.html)
+  
 ## [ODD Assignment](https://pjournal.github.io/mef03g-mujde-r//ODDAssignment.html)
