@@ -11,5 +11,5 @@
   
 ## [ODD Assignment](https://pjournal.github.io/mef03g-mujde-r//ODDAssignment.html)
 
-## EGM Assignment
-## [EGM Assignment Raw Data](https://pjournal.github.io/mef03g-mujde-r//ODDAssignment.html)
+# EGM Assignment
+## [EGM Assignment Raw Data](https://github.com/pjournal/mef03g-mujde-r/blob/master/EGM%20Mujde_R%20%20Raw%20Data.xlsx)
