@@ -6,10 +6,11 @@
     -Civan Şık
     -Furkan Sevimli
     -Efe Demir
+## Project
+### [Project Proposal](https://pjournal.github.io/mef03g-mujde-r//ProjectProposal.html)
 
-## [Project Proposal](https://pjournal.github.io/mef03g-mujde-r//ProjectProposal.html)
-  
-## [ODD Assignment](https://pjournal.github.io/mef03g-mujde-r//ODDAssignment.html)
+## Assignments
+### [ODD Assignment](https://pjournal.github.io/mef03g-mujde-r//ODDAssignment.html)
 
-# EGM Assignment
+## EGM Assignment
 ### [EGM Raw Data](https://github.com/pjournal/mef03g-mujde-r/raw/master/EGM_Mujde_R_Raw_Data_1.xlsx)
