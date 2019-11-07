@@ -6,6 +6,8 @@
     -Civan Şık
     -Furkan Sevimli
     -Efe Demir
+    
+    
 ## Project
 ### [Project Proposal](https://pjournal.github.io/mef03g-mujde-r//ProjectProposal.html)
 
