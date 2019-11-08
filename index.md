@@ -16,7 +16,7 @@
 
 ## EGM Assignment
 ### [EGM Raw Data](https://github.com/pjournal/mef03g-mujde-r/raw/master/EGM_Mujde_R_Raw_Data_1.xlsx)
-### [EGM Assignment](https://github.com/pjournal/mef03g-mujde-r/blob/master/Mujde-R_EGM-Assignment.html)
+### [EGM Assignment](https://pjournal.github.io/mef03g-mujde-r//Mujde-R_EGM-Assignment.html)
 
 ## Project
 ### [Project Proposal](https://pjournal.github.io/mef03g-mujde-r//ProjectProposal.html)
