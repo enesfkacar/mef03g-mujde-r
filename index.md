@@ -10,7 +10,7 @@
     
 
 ## Assignments
-
+## ODD Assignment
 ### [ODD Raw Data](https://github.com/pjournal/mef03g-mujde-r/raw/master/Konsolide_ODD_datasi.xlsx)
 ### [ODD Assignment](https://pjournal.github.io/mef03g-mujde-r//ODDAssignment.html)
 
