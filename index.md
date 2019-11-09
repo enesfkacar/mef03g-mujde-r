@@ -1,11 +1,11 @@
 # Welcome to Mujde 'R' Group Progress Journal
 
 ## Group Members 
-   ### [Burcu Demirgülle](https://pjournal.github.io/mef03-bdemirgulle/) 
-   ### [Nilgün Aytekin](https://pjournal.github.io/mef03-Nilgun/) 
-   ### [Civan Şık](https://pjournal.github.io/mef03-scivan/) 
-   ### [Furkan Sevimli](https://pjournal.github.io/mef03-FurkanSevimli/) 
-   ### [Efe Demir](https://pjournal.github.io/mef03-Demirefe91/) 
+   -Burcu Demirgülle
+   -Nilgün Aytekin
+   -Civan Şık
+   -Furkan Sevimli
+   -Efe Demir
     
     
 
