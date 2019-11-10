@@ -20,7 +20,7 @@
 
 ## BKM Assignment
 ### [BKM Raw Data](https://github.com/pjournal/mef03g-mujde-r/blob/master/2019-BKM%20Rapor-Konsolide.xlsx)
-### [BKM Assignment](https://github.com/pjournal/mef03g-mujde-r/blob/master/Assignment-BKM-Report.html)
+### [BKM Assignment](https://github.com/pjournal/mef03g-mujde-r//Assignment-BKM-Report.html)
 
 
 ## Project
