@@ -19,7 +19,7 @@
 ### [EGM Assignment](https://pjournal.github.io/mef03g-mujde-r//Mujde-R_EGM-Assignment.html)
 
 ## BKM Assignment
-### [BKM Raw Data](https://github.com/pjournal/mef03g-mujde-r/blob/master/2019-BKM%20Rapor-Konsolide.xlsx)
+### [BKM Raw Data](https://github.com/pjournal/mef03g-mujde-r/blob/master/2019-BKM%20Rapor-Konsolide.xlsx?raw=true)
 ### [BKM Assignment](https://pjournal.github.io/mef03g-mujde-r//Assignment-BKM-Report.html)
 
 
