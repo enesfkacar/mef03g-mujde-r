@@ -20,3 +20,5 @@
 
 ### Group Project
 * [Project Proposal With Summary Of The Data And Explanations](https://pjournal.github.io/mef03g-mujde-r//ProjectProposal.html)
+* [Project Report](finalProject.html)
+* [Shiny Application](https://demirefe91.shinyapps.io/GroupProject/)
