@@ -24,5 +24,5 @@
 * [Project Report](finalProject.html)
 * [Project Report Source Code](finalProject.Rmd)
 * [Shiny Application](https://demirefe91.shinyapps.io/GroupProject/)
-* [Shiny Application Source Code](Shiny.Rmd)
+* [Shiny Application Source Code](app.R)
 * [Project Presentation](FINAL%20PROJECT-PRESENTATION.pptx)
