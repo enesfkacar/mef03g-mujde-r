@@ -1,0 +1,610 @@
+---
+title: "A Detail Study About Turkish Super League (from 93-94 to 18-19)"
+output:
+  html_document:
+    code_folding: hide
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+<style>
+pre {
+  overflow-x: auto;
+}
+pre code {
+  word-wrap: normal;
+  white-space: pre;
+}
+</style>  
+
+# Group Members: Mujde-R
+
+* [Burcu Demirgülle](https://pjournal.github.io/mef03-bdemirgulle)
+* [Nilgün Aytekin](https://pjournal.github.io/mef03-Nilgun)
+* [Civan Şık](https://pjournal.github.io/mef03-scivan)
+* [Furkan Sevimli](https://pjournal.github.io/mef03-FurkanSevimli)
+* [Efe Demir](https://pjournal.github.io/mef03-Demirefe91)
+
+
+# A. Key Takeaways
+
+* We have rewieved the football match statistics and Turkish football teams, in the last 25 years. The match statistics data is available on [football-data.co.uk](football-data.co.uk)
+
+* We examined the league teams for 25 years and found out how many times a team managed to attend Turkish Super Leauge. Throughout 25 years, only 4 teams succeded to be champion and total points of those champions flactuates between 69-85 points interval. When we deep dived into breakdown of those points, champion teams scored more point in thier home matches than away matches. It was interesting to see how scored goals/scored points ratio varies among champions. 
+
+* We compared half season and total season rankings especially to understand journey of a leaguers in terms of stability. Especially for champions and relegated teams, half season rankings gave us a clear idea about their end results. 
+
+* We defined two new rankings as scored goal ranking and mininum conceded goal ranking alongside the classical score ranking to detail the performance of the champions. Apparently, scored goal number and conceded goal number have different weigths to bring the success to the champion. 
+
+* In order to build a better understanding of the successes of the champions, we looked at their consecutive win, unbeaten and losing streaks.  
+
+
+# B. Dataset
+
+* Our data starts from 94-95 season with 6 variable (Date, HomeTeam, AwayTeam, FTHG, FTAG and FTR)
+* In 1991 3 new variables are added as half-time results (HTHG, HTAG, HTR)
+* In 2017 12 new variables are added as very-detailed match statistics
+* We found out that the 2009-2019 season is organized with 17 teams. (Ankaraspor were reduced cluster by Turkish Football Federation)
+* We have various betting statistics data. But we will come this to later
+* The descriptions of variables are as below:
+  - Season: Year which season is started
+  - Date: date
+  - HomeTeam: Home Team
+  - AwayTeam: Away Team
+  - FTHG : Full-time - Home Team Goal Scored
+  - FTAG : Full-time - Away Team Goal Scored
+  - FTR : Full-time Match Result (H=Home Win, D=Draw, A=Away Win)
+  - HTHG: Half-time - Home Team Goal Scored
+  - HTAG: Half-time - Away Team Goal Scored
+  - HTR: Half-time Match Result (H=Home Win, D=Draw, A=Away Win)
+  - HS: Home Team shots
+  - AS: Away Team Shots
+  - HST: Home Team Shots on Target
+  - AST: Away Team Shots on Target
+  - HF: Home Team Fouls Committed
+  - AF: Away Team Fouls Committed
+  - HC = Home Team Corners
+  - AC = Away Team Corners
+  - HY = Home Team Yellow Cards
+  - AY = Away Team Yellow Cards
+  - HR = Home Team Red Cards
+  - AR = Away Team Red Cards
+
+
+```{r,echo=TRUE, message=FALSE}
+options(width = 999)
+library(plyr)
+library(dplyr)
+library(kableExtra)
+library(knitr)
+library(ggplot2)
+library(plotly)
+library(reshape2)
+```
+  
+## 1. Uploading the Dataset
+
+* We imported the data our github account as raw csv format.
+* You can see the imported raw data by clicking [here](https://github.com/pjournal/mef03g-mujde-r/tree/master/Group%20Project/Raw%20Data).
+
+## 2. Reading the Raw Data
+* We downloaded the 25 year raw data and bind them all.
+* We added Season column to use as startYear index
+```{r}
+get_data_url <- function(start_year) {
+  data_url <- paste("https://github.com/pjournal/mef03g-mujde-r/blob/master/Group%20Project/Raw%20Data/", start_year, "-",
+                    start_year + 1, ".csv?raw=true", sep='')
+  return (data_url)
+}
+
+get_data_between_years <- function (start_year, end_year){
+all_raw_data <- data.frame()
+  for (year in seq(start_year, end_year)) {
+    data_url <- get_data_url(year)
+    raw_data <- read.csv(data_url,skip=1,sep=',',header=F)
+    raw_data <- raw_data %>% mutate(V1 = year)
+    if(year < 1999){
+      all_raw_data <- rbind.fill(all_raw_data, raw_data)
+    } else if(year < 2017){
+      ## First 10 variables
+      all_raw_data <- rbind.fill(all_raw_data, raw_data[c(1:10)])
+    } else{
+      ## First 22 variables
+      all_raw_data <- rbind.fill(all_raw_data, raw_data[c(1:22)])
+    }
+  }
+  return (all_raw_data)
+}
+raw_data <- get_data_between_years(1994, 2018)
+```
+
+## 2. Data Preparation
+* We added rowIndex 
+* We added weekIndex by using rowIndex
+* We mapped some teams which changed their names in years
+  - Antalya --> Antalyaspor
+  - Kayseri --> Kayserispor
+  - Istanbulspor --> Buyuksehyr
+  - Yeni Malatyaspor --> Malatyaspor
+  - Hacettepespor --> Ankaraspor
+  - Osmanlispor --> Ankaraspor
+  - Erzurum BB --> Erzurumspor
+  - Erzurum --> Erzurumspor
+```{r}
+## A season contains 34 match weeks
+totalWeekCount = 34
+## As 18 teams are in league, there are 9 matches every week
+totalMatchPerWeek = 9
+## In 2009 there are 17 teams in league therefore there are 8 matches every week
+totalMatchPerweek_2009 = 8
+totalMatchCountUntil2009 = totalWeekCount * totalMatchPerWeek * 15
+totalMatchCountIn2009 = totalWeekCount * totalMatchPerweek_2009
+
+all_data <- raw_data %>% mutate(rowIndex = seq.int(nrow(raw_data)))
+all_data <- all_data %>% mutate(weekIndex = case_when(V1 < 2009 ~ (((rowIndex - 1) %/% totalMatchPerWeek) %% 34) + 1,
+V1 == 2009 ~(((rowIndex - totalMatchCountUntil2009 - 1) %/% totalMatchPerweek_2009) %% 34 + 1),
+V1 > 2009 ~(((rowIndex - totalMatchCountUntil2009 - totalMatchCountIn2009 - 1) %/%
+totalMatchPerWeek) %% 34 + 1)))
+
+colnames(all_data)<-c("season","date","HomeTeam","AwayTeam","FTHG","FTAG","FTR","HTHG","HTAG","HTR","HS","AS","HST","AST","HF","AF","HC","AC","HY","AY","HR","AR", "rowIndex", "weekIndex")
+
+all_data[all_data == "Antalya"] <- "Antalyaspor"
+all_data[all_data == "Kayseri"] <- "Kayserispor"
+all_data[all_data == "Istanbulspor"] <- "Buyuksehyr"
+all_data[all_data == "Yeni Malatyaspor"] <- "Malatyaspor"
+all_data[all_data == "Hacettepespor"] <- "Ankaraspor"
+all_data[all_data == "Osmanlispor"] <- "Ankaraspor"
+all_data[all_data == "Erzurum BB"] <- "Erzurumspor"
+all_data[all_data == "Erzurum"] <- "Erzurumspor"
+
+str(all_data)
+
+```
+
+## 3. Creating Half-Season and End-Season Team Rankings
+
+```{r}
+
+get_season_statistics <- function(all_data) {
+  all_statistics <- all_data %>% mutate(home_team_point = case_when(FTR == 'H' ~ 3, FTR == 'D' ~ 1, FTR == 'A' ~ 0),
+                                away_team_point = case_when(FTR == 'A' ~ 3, FTR == 'D' ~ 1, FTR == 'H' ~ 0),
+                                home_team_point_half = case_when(weekIndex < 18 & FTR == 'H' ~ 3, 
+                                                                 weekIndex < 18 & FTR == 'D' ~ 1, 
+                                                                 weekIndex < 18 & FTR == 'A' ~ 0, 
+                                                                 weekIndex >= 18 ~ 0),
+                                away_team_point_half = case_when(weekIndex < 18 & FTR == 'A' ~ 3, 
+                                                                 weekIndex < 18 & FTR == 'D' ~ 1, 
+                                                                 weekIndex < 18 & FTR == 'H' ~ 0, 
+                                                                 weekIndex >= 18 ~ 0))
+  home_season_statistics <- all_statistics %>% group_by(season, HomeTeam) %>% 
+  summarise(point = sum(home_team_point), home_point_half = sum(home_team_point_half), HG = sum(FTHG), HC = sum(FTAG), difference = HG - HC,
+            avg_home_p = mean(home_team_point)) %>% 
+  mutate(team=HomeTeam) %>% 
+  select(season, team, home_point_half, point, HG, HC, difference, avg_home_p) %>% 
+  arrange(desc(point))
+  
+  away_season_statistics <- all_statistics %>% group_by(season, AwayTeam) %>% 
+  summarise(point = sum(away_team_point), away_point_half = sum(away_team_point_half), AG = sum(FTAG), AC = sum(FTHG), difference = AG - AC,
+            avg_away_p = mean(away_team_point)) %>% 
+  mutate(team=AwayTeam) %>% 
+  select(season, away_point_half, team, point, AG, AC, difference, avg_away_p) %>% 
+  arrange(desc(point))
+  
+  season_statistics<- full_join(home_season_statistics,away_season_statistics,by=c("season","team"))%>%
+    mutate(total_point=point.x+point.y, goal_scored = HG + AG, goal_conceded = HC + AC, home_goal = HG, home_conceded = HC,
+           away_goal = AG, away_conceded = AC, 
+           goal_difference = goal_scored - goal_conceded,
+           total_point_half = home_point_half + away_point_half,
+           avg_total_p = avg_home_p + avg_away_p) %>% arrange(desc(season,total_point, goal_difference)) %>% 
+    select(season, team, total_point, goal_scored, goal_conceded, goal_difference, total_point_half, avg_home_p,
+           avg_away_p, avg_total_p, home_goal, home_conceded, away_goal, away_conceded) 
+}
+
+  season_statistics <- get_season_statistics(all_data)
+  
+  kable(season_statistics) %>% kable_styling("striped", full_width = F) %>%
+  scroll_box(width = "100%", height = "400px")
+```
+
+# C.Analyses
+## 1. Champions Analyses
+### 1.1. Team Participation Over 25 Years
+
+* We see that only 4 teams have never relegated to lower division. (Galatasaray, Fenerbahce, Besiktas and Trabzonspor)
+* After these teams the most consistent teams are Genclerbirligi, Gaziantep and Bursaspor
+* There are 9 teams that can participate only one year
+
+```{r}
+  team_participation <- season_statistics %>% group_by(team) %>% count(team) %>% 
+  select(team, n)%>%arrange(desc(n))
+
+ggplot(team_participation,aes(reorder(team,n),n,fill="red"))+
+  geom_bar(stat="identity")+
+  coord_flip()+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position  = "none")+
+  scale_y_continuous(breaks=seq(0, 25, 1)) +
+  labs(x="Participation Count", y="Team", title="Team Participation Over 25 Years")
+```
+
+```{r}
+mean_t<-as.integer(mean(team_participation$n))
+
+median_t<-median(team_participation$n)
+
+print(paste("Average of attending the league: ",mean_t))
+print(paste("Median of attending the league: ",median_t))
+
+```
+18 teams have managed to stay in the league above the average.
+
+
+### 1.2. Total Championship Count of Teams
+
+* We see that there are only 4 champions at last 25 years
+* Galatasaray had a huge domination in that scale
+
+```{r}
+total_champions <- season_statistics %>% top_n(1, wt=total_point) %>% filter(goal_difference == max(goal_difference)) 
+total_champions_group <- total_champions %>% group_by(team) %>% count(team) %>% select(team,n) %>% arrange(desc(n))
+
+pie = ggplot(total_champions_group, aes(x="", y=n, fill=team)) + geom_bar(stat="identity", width=1)
+pie = pie + coord_polar("y", start=0) + geom_text(aes(label = paste0(round(n))), position = position_stack(vjust = 0.5),color="#FFFFFF",size=6)
+pie = pie + scale_fill_manual(values=c("#000000", "#006600", "#003366","#FF0000"))
+pie = pie + labs(x = NULL, y = NULL, fill = NULL, title = "CHAMPIONS OF 25 YEARS")
+pie = pie + theme_classic() + theme(axis.line = element_blank(),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          plot.title = element_text(hjust = 0.5, color = "#000000"))
+pie
+```
+
+![](C:/Users/efeyd/Desktop/galatasaray.jpg)
+
+### 1.3. Total Points of Champions
+
+* We see that that the teams are required to obtain 69-85 point interval to achieve 1st rank in the league.
+
+```{r}
+plot <- ggplot(total_champions,aes(x=season,y=total_point, label=team))+geom_line(size=1,color="green")+geom_point() +
+  scale_x_continuous(breaks=seq(1994, 2018, 5)) + expand_limits(y = 40) + theme_classic() + 
+  labs(x="Years", y="Total Point", title = "Total Points of Champions")
+ggplotly(plot)
+```
+
+### 1.4. Champions' Point Distribution at Home and Away
+
+```{r, message=FALSE, warning=FALSE}
+home_away_champs <- total_champions %>% select(season,team,avg_home_p,avg_away_p,avg_total_p)
+
+awayv<-as.vector(home_away_champs$avg_away_p)
+homev<-as.vector(home_away_champs$avg_home_p)
+df<-tibble(season=as.integer(home_away_champs$season),team=home_away_champs$team,homev,awayv)
+
+seav<-as.vector(home_away_champs$season)
+seas<-rep(seav,2)
+typea<-c(rep("away",50))
+typeh<-c(rep("home",50))
+df2<-data_frame(seas,typeh,typea)
+
+stack_point<-inner_join(df,df2,by=c("season"="seas"))%>%select(season,typeh,typea,homev,awayv)
+
+df3<-stack_point%>%select(season,typeh,homev)%>%group_by(season,typeh,homev)%>%summarise(typeh_d=n_distinct(typeh))%>%select(season,type=typeh,poin=homev)
+
+df4<-stack_point%>%select(season,typea,awayv)%>%group_by(season,typea,awayv)%>%summarise(typeh_d=n_distinct(typea))%>%select(season,type=typea,poin=awayv)
+
+stack_point2<-rbind.data.frame(df3,df4)
+
+
+ggplot(stack_point2,aes(fill=type,y=poin,x=season))+geom_bar(position = "stack",stat="identity")+labs(title= "
+       Distribution of Points by Home-Away",x="Season",y="Home Point- Away Point")
+```
+
+From the chart, it is seen that the champion teams get their scores mainly from the matches they play at home.
+
+### 1.5. Total Point And Score Correlation of Champions
+
+```{r}
+total_goals <- total_champions %>% mutate(goal_for_point = goal_scored/ total_point) %>% select(season, team, total_point, goal_scored,goal_for_point) %>%
+arrange(desc(goal_for_point))
+
+plot <- ggplot(total_goals,aes(x=season,y=goal_for_point))+geom_line(size=1,color="red")+geom_point() +
+  scale_x_continuous(breaks=seq(1994, 2018, 5)) + theme_bw() + 
+  labs(x="Years", y="Goal Per Point", title = "Goal Per Point By Years Table")
+ggplotly(plot)
+```
+
+## 2. First Half / End Season Analyses
+### 2.1. First Half Rankings of Champions
+
+* Let us examine the first half rankings of the champion teams.
+* What is the first half ranking to achieve championship?
+
+```{r}
+ranked_season_statistics <- season_statistics %>% group_by(season) %>% 
+  mutate(end_rank = rank(-total_point, ties.method = "first"),
+  half_rank = rank(-total_point_half, ties.method = "first"),
+  home_score_rank = rank(-home_goal, ties.method = "first"),
+  away_score_rank = rank(-away_goal, ties.method = "first"),
+  home_concede_rank = rank(home_conceded, ties.method = "first"),
+  away_concede_rank = rank(away_conceded, ties.method = "first"),
+  total_goal_rank = rank(-goal_scored, ties.method = "first"),
+  total_concede_rank = rank(goal_conceded, ties.method = "first"),
+  rank_difference = half_rank - end_rank)
+champion_rankings <- ranked_season_statistics %>% filter(end_rank==1) %>% group_by(rank_difference) %>% count(rank_difference) %>%
+  select(rank_difference, n)
+plot<-ggplot(champion_rankings, aes(x=reorder(rank_difference,-n), n, fill=rank_difference)) + geom_bar(stat="identity") + 
+  theme_bw() + labs(x="Rank Difference", title="Rank Difference between Half-season and End-season", y="Occurance", fill="Rank Difference")
+ggplotly(plot)
+```
+
+* The team that trying to achieve championship at the end of the season should take place in first three rank at the half year table.
+
+### 2.2. First Half Leaders' End Year Performances
+
+* Is success at the first half enough for season-ending?
+
+```{r}
+  half_year_rankings <- ranked_season_statistics %>% filter(half_rank==1) %>% group_by(end_rank) %>% count(end_rank) %>%
+  select(end_rank, n)
+  plot<-ggplot(half_year_rankings, aes(x=end_rank, n, fill=end_rank)) + geom_bar(stat="identity") + 
+  theme_bw() + labs(x="Position", title="End-Season Position of First Half Leaders", y="Occurance", fill="Position")
+ggplotly(plot)
+```
+* Yes there is evidence that most of the half year leaders are going to finish in the first two rankings at the end of season.
+
+### 2.3. Relagated Teams' Half Year Performances
+
+* What is the first half position not to be relegated at the end of the season?
+```{r}
+
+relegated_teams <- ranked_season_statistics %>% filter(end_rank>15) %>% group_by(half_rank) %>% count(half_rank) %>%
+  select(half_rank, n)
+
+plot<-ggplot(relegated_teams, aes(x=half_rank, n, fill=half_rank)) + geom_bar(stat="identity") + 
+  theme_bw() + labs(x="Position", title="Half-Season Position of Relegated Teams", y="Occurance", fill="Position")
+ggplotly(plot)
+
+```
+
+### 2.4 Best Second Half Performances
+
+* Let us show the biggest leaps from half-season to season end. Fenerbahce had a chaotic first half last year.
+
+```{r}
+best_comebacks <- ranked_season_statistics %>% arrange(desc(rank_difference)) %>% select(season, team, half_rank, end_rank) %>%
+  head(8)
+kable(best_comebacks) %>%
+  kable_styling("striped", full_width = F) %>%
+  scroll_box(width = "100%", height = "400px")
+```
+
+### 2.5 Worst Second Half Performances
+
+* Although there were radical changes in first and last three rank at the half/end season, middle rankings can differ so much as well.
+
+```{r}
+worst_second_halfs <- ranked_season_statistics %>% arrange(rank_difference) %>% select(season, team, half_rank, end_rank) %>%
+  head(8)
+kable(worst_second_halfs) %>%
+  kable_styling("striped", full_width = F) %>%
+  scroll_box(width = "100%", height = "400px")
+```
+Especially the local teams made a good start to the season, but they could not continue their success at the end of the season.
+
+## 3. Goal Performance Analyses
+### 3.1 Goal Scored Rank By Home/Away Scale
+
+```{r}
+total_champions_ranked <- ranked_season_statistics %>% filter(end_rank==1)
+goal_score_ranked <- total_champions_ranked %>% select(season, team, home_goal, home_score_rank, away_goal, away_score_rank)
+home_ranking <- goal_score_ranked %>% mutate(rank=home_score_rank, type="HOME")
+away_ranking <- goal_score_ranked %>% mutate(rank=away_score_rank, type="AWAY")
+total_ranking <- bind_rows(home_ranking, away_ranking)
+p1<-ggplot(total_ranking,aes(x = season, y = rank,color=type))+
+  geom_point()+ 
+  geom_line(aes(group = type)) +
+  labs(x="Season", y = "Rank",color = "Type", title = "Goal Score Home/Away Ranking")+ theme_bw() +
+  scale_x_continuous(breaks=seq(1994, 2018, 5))
+ggplotly(p1)
+```
+
+### 3.2. Goal Concede Rank By Home/Away Scale
+
+```{r}
+goal_concede_ranked <- total_champions_ranked %>% select(season, team, home_conceded, home_concede_rank, away_conceded, away_concede_rank)
+home_ranking <- goal_concede_ranked %>% mutate(rank=home_concede_rank, type="HOME")
+away_ranking <- goal_concede_ranked %>% mutate(rank=away_concede_rank, type="AWAY")
+total_ranking <- bind_rows(home_ranking, away_ranking)
+p2<-ggplot(total_ranking,aes(x = season, y = rank,color=type))+
+  geom_point()+ 
+  geom_line(aes(group = type)) +
+  labs(x="Season", y = "Rank",color = "Type", title = "Goal Concede Home/Away Ranking")+ theme_bw() +
+  scale_x_continuous(breaks=seq(1994, 2018, 5))
+ggplotly(p2)
+```
+
+### 3.3. Goal Rank / Goal Concede Rank Scale
+
+```{r}
+goal_ranked <- total_champions_ranked %>% select(season, team, total_goal_rank, total_concede_rank)
+home_ranking <- goal_ranked %>% mutate(rank=total_goal_rank, type="SCORE")
+away_ranking <- goal_ranked %>% mutate(rank=total_concede_rank, type="CONCEDE")
+total_ranking <- bind_rows(home_ranking, away_ranking)
+p3<-ggplot(total_ranking,aes(x = season, y = rank,color=type))+
+  geom_point()+ 
+  geom_line(aes(group = type)) +
+  labs(x="Season", y = "Rank",color = "Type", title = "Goal Score/Concede Ranking") + theme_bw() +
+  scale_x_continuous(breaks=seq(1994, 2018, 5))
+ggplotly(p3)
+```
+
+* We found that total scored goal number is a more decisive factor than total conceded goal number during most of the seasons. A team is more likely to become a champion, when that team scores more goal than others and still this particular team doesn't need to be in the first place when it comes the ranking of conceded goal number (team concedes less goal than its rivals) with the help of achieving the highest scored goal rank.
+
+* In our table it is obvious that, champions of 16 seasons out of  25 seasons achieved to be on the first rank at total scored goal. On the other hand,  champions of the 8 seasons out of 25 seasons hold the first ranking at minimum conceded goal number.
+
+## 3.4. Emperor's Inattentive Aggression once Paid Him Back!
+
+* Four years in a row, between 1996 - 2000, Galatasaray was crowned champion. This  success is the maximum consecutive chamionship pattern in 25 seasons. Other consecutive championships only counts up to 2 (Again Galatasaray, Fenerbahce and Beşiktaş). Focused on the that 4 years, Galatasaray always held the first place at scored goal rank but couldn't reflect this success onto minimum conceded goal rank. Especially in 1998 seasons, Galatasaray  held the 8th place at minimum conceded goal rank. This is the biggest gap between scored goal rank and mininum conceded goal rank for a champion.
+
+
+## 3.5. Republic's Scored Goal Persistence 
+
+* Focused on the seasons that Fenerbahce took the first place at total points, during these seasons Fenerbahce always held the first place at total scored goal number. (Only Fenerbahce has this statistics among all champions). Still, it is impossible to observe the same success at mininmum conceded goal rank.
+
+## 4. Longest Streaks of 4 Champions
+```{r}
+champions <- c("Galatasaray", "Fenerbahce", "Besiktas", "Bursaspor")
+longest_streak <- function(statistics, match_result, team_name){
+  statistics <- statistics %>% filter(HomeTeam==team_name | AwayTeam==team_name) %>%
+    transmute(season, weekIndex, team = case_when(HomeTeam == team_name ~ HomeTeam, AwayTeam == team_name ~ AwayTeam), result = 
+                case_when(FTR == 'D' ~ 'D',
+                          HomeTeam == team & FTR == 'A' ~ 'L',
+                          HomeTeam == team & FTR == 'H' ~ 'W',
+                          AwayTeam == team & FTR == 'A' ~ 'W',
+                          AwayTeam == team & FTR == 'H' ~ 'L')) %>% arrange(season, weekIndex) %>% transmute(season, team, result, rowIndex =seq.int(nrow(.))) %>% filter(result %in% match_result) %>% mutate(prev = lag(rowIndex))
+  statistics <- statistics %>% mutate(continue = case_when(is.na(prev) ~ 1, prev== rowIndex - 1 ~ 1, TRUE ~ 0))
+  recurring <- rle(statistics$continue)
+  return (c(team=team_name, consecutive=(max(recurring$lengths[as.logical(recurring$values)]))))
+}
+
+get_longest_streak <- function(statistics,match_result, team_list){
+  longest <- lst()
+  for (x in team_list){
+  longest <- rbind(longest, longest_streak(statistics, match_result, x))
+  }
+  return (as.data.frame(longest))
+}
+```
+### 4.1. Longest Win Streaks of 4 Champions
+```{r}
+longest_winning <- get_longest_streak(all_data, c("W"), champions)
+kable(longest_winning) %>%
+  kable_styling("striped", full_width = F)
+```
+### 4.2. Longest Unbeaten Streaks of 4 Champions
+```{r}
+longest_unbeaten <- get_longest_streak(all_data, c("W", "D"), champions)
+kable(longest_unbeaten) %>%
+  kable_styling("striped", full_width = F)
+```
+### 4.3. Longest Losing Streaks of 4 Champions
+```{r}
+longest_losing <- get_longest_streak(all_data, c("L"), champions)
+kable(longest_losing) %>%
+  kable_styling("striped", full_width = F)
+```
+
+## 5. Other Analyses
+### 5.1. First Half / Second Half Match Results
+
+```{r}
+match_results <- all_data %>% filter(FTR %in% c("H", "D", "A") &
+                                                HTR %in% c("H", "D", "A")) %>% mutate(first_second = case_when(HTR == "H" & FTR == "H" ~ "Home-Home",
+                                                             HTR == "H" & FTR == "D" ~ "Home-Draw",
+                                                             HTR == "H" & FTR == "A" ~ "Home-Away",
+                                                             HTR == "D" & FTR == "H" ~ "Draw-Home",
+                                                             HTR == "D" & FTR == "D" ~ "Draw-Draw",
+                                                             HTR == "D" & FTR == "A" ~ "Draw-Away",
+                                                             HTR == "A" & FTR == "H" ~ "Away-Home",
+                                                             HTR == "A" & FTR == "D" ~ "Away-Draw",
+                                                             HTR == "A" & FTR == "A" ~ "Away-Away")) %>%
+  group_by(first_second) %>% summarise(count=n())
+ggplot(match_results, aes(reorder(first_second,count), count, fill=first_second)) + geom_bar(stat="identity") +
+  coord_flip() + labs(x="Result", y="Count", title="Result vs Occurance")
+
+```
+
+### 5.2. First Half / Second Half Goal Distribution
+
+```{r}
+goal_distribution <- all_data %>% filter(!is.na(HTHG) & !is.na(HTAG) & !is.na(FTHG) & !is.na(FTAG)) %>% group_by(season) %>%
+  summarise(half_home_goal = sum(HTHG), half_away_goal = sum(HTAG),
+            second_home_goal = sum(FTHG) - half_home_goal, second_away_goal = sum(FTAG) - half_away_goal)
+goal_distribution_melt <- melt(goal_distribution, id="season")
+
+ggplot(goal_distribution_melt,aes(season,value,fill=variable))+
+  geom_bar(stat="identity")+
+  coord_flip()+
+  theme_bw()+
+  labs(x="Year", y="Score", fill="Category")
+```
+
+### 5.3. Shots / Shots On Target of Home / Away Teams
+
+```{r}
+shot_distribution <- all_data %>% filter(!is.na(HS) & !is.na(AS) & !is.na(HST) & !is.na(AST)) %>% group_by(weekIndex) %>%
+  summarise(home_shot = sum(HS), away_shot = sum(AS),
+            home_shot_on_target = sum(HST), away_shot_on_target = sum(AST))
+shot_distribution_melt <- melt(shot_distribution, id="weekIndex")
+
+plot2 <- ggplot(shot_distribution_melt, aes(x = weekIndex, y=value, color = variable)) + 
+    geom_line(aes(group = variable)) + scale_x_continuous(limits = c(1,34)) + theme_classic() + 
+  labs(x="Weeks", y="Shots", title = "Shots Line Graph")
+ggplotly(plot2)
+```
+
+### 5.4. Yellow Cards vs Fouls Committed Over Weeks
+
+```{r}
+yellow_cards_fouls <- all_data %>% filter(!is.na(HY) & !is.na(AY) & !is.na(HF) & !is.na(AF)) %>%
+  transmute(away_card_per_foul = AY / AF, home_card_per_foul = HY / HF, weekIndex)
+yellow_cards_fouls_melted <- melt(yellow_cards_fouls, id="weekIndex")
+plot3 <- ggplot(yellow_cards_fouls_melted,aes(x = weekIndex, y = value, color="red")) + geom_point() +
+  labs(x = "Week", y="", title = "Yellow Card Per Faul Diagram") +
+  theme(title = element_text(size = 16, face = "bold"), plot.title = element_text(hjust = 0.5), 
+        axis.title.x = element_text(size = 14, face = "bold"), 
+        axis.title.y = element_text(size = 14, face = "bold"), legend.title = element_blank()) +
+  scale_x_continuous(limits = c(0, 34)) + 
+  scale_y_continuous(limits = c(0, 1)) + facet_wrap(~variable)
+ggplotly(plot3)
+
+fouls <- all_data %>% filter(!is.na(HY) & !is.na(AY) & !is.na(HF) & !is.na(AF)) %>%
+  transmute(home_faul = HF, away_faul = AF, weekIndex)
+fouls_melted <- melt(fouls, id="weekIndex")
+plot4 <- ggplot(fouls_melted,aes(x = weekIndex, y = value, color="yellow")) + geom_point() +
+  labs(x = "Week", y="", title = "Fouls Committed Diagram") +
+  theme(title = element_text(size = 16, face = "bold"), plot.title = element_text(hjust = 0.5), 
+        axis.title.x = element_text(size = 14, face = "bold"), 
+        axis.title.y = element_text(size = 14, face = "bold"), legend.title = element_blank()) +
+  scale_x_continuous(limits = c(0, 34)) + 
+  scale_y_continuous(limits = c(0, 20)) + facet_wrap(~variable)
+ggplotly(plot4)
+```
+
+### 5.5. Most Aggressive Teams
+
+```{r, message=FALSE,warning=FALSE}
+  home_aggressive <- all_data %>% filter(!is.na(HR) & !is.na(HY)) %>% group_by(HomeTeam) %>% mutate(home_card_point = sum(HY) + 3*sum(HR)) 
+  away_aggressive <- all_data %>% filter(!is.na(AR) & !is.na(AY)) %>% group_by(AwayTeam) %>% mutate(away_card_point = sum(AY) + 3*sum(AR))
+  all_aggressive <- inner_join(home_aggressive, away_aggressive, by=c("HomeTeam" = "AwayTeam")) %>% 
+    mutate(total_card_point = home_card_point + away_card_point, team=HomeTeam) %>% select(team, total_card_point)
+  
+  p5<-ggplot(all_aggressive,aes(reorder(team,total_card_point),total_card_point,fill=team))+
+  geom_bar(stat="identity")+
+  coord_flip()+
+  theme_bw()+
+  labs(x="Team", y="Total Card Point", title="Most Aggressive Teams")
+  ggplotly(p5)
+```
+
+
+# D.Concluison
+* In the last 25 years, 49 teams have managed to attend the Turkish Super League at least once and 18 of these teams could stay in the league above the average (9 times).
+
+* Throughout 25 years, only 4 teams succeeded to be champion and total points of those fluctuates between 69-85 points interval.
+
+* Champion teams scored more point in their home matches than away matches. In general, we have concluded that the teams are better, when playing in their home.
+
+* The teams that won the championship at the end of the season were take place in first three rank at the half year table. There is evidence that most of the half year leaders are going to finish in the first two rankings at the end of season.
+
+* Mostly, champion teams are on the first rank at total scored goal and a team is more likely to become a champion, when that team scores more goal than others.
+
+* Total scored goal number is a more decisive factor than total conceded goal number.
+
+* Local teams, below average-attending, failed to continue despite a good start to the season.
+

@@ -1,0 +1,125 @@
+# ODD Assignment
+#### Group Mujde ‘R’
+### 1.Introduction
+First we find the data on Otomotiv Distibütörleri Derneği [website](http://www.odd.org.tr/web_2837_1/neuralnetwork.aspx?type=36). Then we will find yearly sales data from 2016 to 2019. We combined this data in ```Konsolide_ODD_datasi.xlsx```. We will try to analyse this data and make some conclusions.
+
+### Raw Data Column Descriptions
+
+```
+1. Year (year)
+2. Brand (brand)
+3. Domestic Car Sales (car_dom)
+4. Imported Car Sales (car_imp)
+5. Total Car Sales (car_total)
+6. Domestic Light Commercial Sales (lcv_dom)
+7. Imported Light Commercial Sales (lcv_imp)
+8. Total Light Commercial Sales (lcv_total)
+9. Domestic Total Sales (all_dom)
+10. Imported Total Sales (all_imp)
+11. All Sales (all_total)
+```
+### 2.Download Raw Data
+Our raw excel file is in our repository. We can automatically download that file and put it in a temporary file. Then we can read that excel document into R and remove the temp file.
+
+```{r, echo=FALSE, message=FALSE}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r, echo=TRUE, message=FALSE}
+## Our temp file
+tmp<-tempfile(fileext=".xlsx")
+## Download file from repository
+download.file("https://github.com/pjournal/mef03g-mujde-r/blob/master/Konsolide_ODD_datasi.xlsx?raw=true",destfile=tmp, mode='wb')
+## Read that excel file using readxl library. col_names not included and first two rows skipped
+raw_data<-readxl::read_excel(tmp,col_names = FALSE, skip=2)
+```
+
+```{r,  echo=TRUE}
+## Remove the temp file
+file.remove(tmp)
+```
+
+
+``` {r, echo=TRUE}
+# Let's see our data
+head(raw_data)
+```
+
+### 3.Organize Data
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+## rename colnames
+colnames(raw_data) <- c("year","brand","car_dom","car_imp","car_total","lcv_dom","lcv_imp","lcv_total","all_dom","all_imp","all_total")
+## replace NA values with 0
+car_data <- raw_data %>% mutate_if(is.numeric,funs(ifelse(is.na(.),0,.)))
+## let's see our data again
+print(head(car_data),width=Inf)
+```
+
+### 4.Analysis
+#### 4.1 Best Seller Brands
+```{r, echo=TRUE}
+## remove data which total_sales are 0
+best_seller <- car_data %>% filter(car_total > 0 & lcv_total > 0) 
+## group by brand and sum total_sales
+best_seller <- best_seller %>% select(brand,all_total) %>% group_by(brand) %>% summarise(all_total = sum(all_total))
+## arrange by all_total desc
+best_seller <- best_seller %>% arrange(desc(all_total))
+## best_seller 6 brands
+best_seller <- best_seller %>% filter(row_number() < 7)
+print(best_seller, width=Inf)
+```
+
+```{r, echo=TRUE}
+fancy_scientific <- function(l) {
+     # turn in to character string in scientific notation
+     l <- format(l, scientific = TRUE)
+     # quote the part before the exponent to keep all the digits
+     l <- gsub("^(.*)e", "'\\1'e", l)
+     # turn the 'e+' into plotmath format
+     l <- gsub("e", "%*%10^", l)
+     # return this as an expression
+     parse(text=l)
+}
+ggplot(best_seller, aes(x=brand, y=all_total, fill=brand)) + geom_bar(alpha=0.6,stat="identity") + geom_point() + scale_y_continuous(labels=fancy_scientific) + labs(x="Brand Name",y="Sales Count",title="6 Best Seller Brands",fill="Brand")
+
+```
+
+#### 4.2 Total Sales Over Years
+
+```{r, echo=TRUE}
+## remove data which total_sales are 0
+total_sales_over_years <- car_data %>% filter(car_total > 0 & lcv_total > 0) 
+## group by year and sum total_sales
+total_sales_over_years <- total_sales_over_years %>% select(year,all_total) %>% group_by(year) %>% summarise(all_total = sum(all_total))
+## arrange by year desc
+total_sales_over_years <- total_sales_over_years %>% arrange(desc(year))
+## remove last year because the year is not finished
+total_sales_over_years <- total_sales_over_years %>% slice(-1)
+print(total_sales_over_years, width=Inf)
+```
+
+```{r, echo=TRUE}
+## let's convert sales by year data to pie category
+percentage_data <- mutate(total_sales_over_years, sales_percentage = all_total / sum(all_total) * 100)
+## we can see that there is a big decline in sales of 2018
+percentage_data
+ggplot(percentage_data, aes(x="", y=sales_percentage, fill=factor(year))) + geom_bar(stat="identity", width=1) + coord_polar("y", start=0) +geom_text(aes(label = paste0(round(sales_percentage), "%")), position = position_stack(vjust = 0.5)) + scale_fill_manual(values=c("#55DDE0", "#33658A", "#2F4858")) + labs(x = NULL, y = NULL, fill = NULL, title = "Sales Percentage Over Year") + theme_classic() + theme(axis.line = element_blank(),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          plot.title = element_text(hjust = 0.5, color = "#666666"))
+```
+
+#### 4.3 Light Commercial Vs Automobile Sales By Brands
+```{r, echo=TRUE}
+## remove data which total_sales are 0
+total_sales_brands_by_type <- car_data %>% filter(car_total > 0 & lcv_total > 0)
+## group by year and sum total_sales
+total_sales_brands_by_type <- total_sales_brands_by_type %>% select(brand, year,lcv_total, car_total) %>% group_by(brand) %>% summarise(lcv_total = sum(lcv_total), car_total = sum(car_total)) %>% select (brand, lcv_total, car_total)
+## reshape our dataframe which lcv_total and car_total values are different rows by brand
+total_sales_brands_by_type <- reshape(total_sales_brands_by_type, varying = c("lcv_total", "car_total"), timevar="sales_type", v.names="sales_count", times = c("lcv_total", "car_total"),direction="long")
+## create flipped stack bar chart with lcv_total - car_total data by brands
+ggplot(total_sales_brands_by_type, aes(x=reorder(brand,sales_count), y=sales_count/1000)) + geom_bar(aes(fill = sales_type), stat = "identity",position ="stack") + coord_flip() + geom_point() + labs(x="Brand Name",y="Sales Count K (divided by 1000)",title="Car / Commercial Sales By Brands",fill="Brand")
+```
